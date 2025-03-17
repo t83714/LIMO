@@ -1,6 +1,7 @@
-CUDA_VISIBLE_DEVICES='0,1,2,3' \
+CUDA_VISIBLE_DEVICES='0,1' \
 python eval.py \
---model_name_or_path "Qwen/Qwen2.5-32B-Instruct" \
+--model_name_or_path "meta-llama/Llama-3.1-8B-Instruct" \
+--enable-lora True \
 --data_name "math" \
 --prompt_type "qwen-instruct" \
 --temperature 0.0 \
