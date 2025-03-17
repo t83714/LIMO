@@ -31,7 +31,7 @@ def save_completions(completions, filepath):
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--model_name_or_path', type=str, default="meta-llama/Llama-3.1-8B-Instruct", help="model dir")
-    parser.add_argument('--lora-adapter_name_or_path', type=str, default="../train/saves/train/saves/llama3.1-8b/lora", help="lora adapter dir")
+    parser.add_argument('--lora-adapter_name_or_path', type=str, default="../train/saves/llama3.1-8b/lora", help="lora adapter dir")
     parser.add_argument('--enable-lora', type=bool, default=False, help="Whether to use lora adapter")
     parser.add_argument('--n_sampling', type=int, default=1, help="n for sampling")
     parser.add_argument("--k", type=int, default=1, help="Value of k for pass@k calculation")
