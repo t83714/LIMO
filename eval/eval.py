@@ -18,6 +18,7 @@ from utils.math_normalization import *
 from utils.grader import *
 import pickle
 from math import comb
+import torch.multiprocessing as mp
 
 # envs.VLLM_HOST_IP="0.0.0.0" or "127.0.0.1"
 
@@ -243,6 +244,7 @@ def infer(args):
 
 
 if __name__ == "__main__":
+    mp.set_start_method('spawn', force=True)
     args = parse_args()
     set_seed(args.seed)
     infer(args)
