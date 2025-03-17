@@ -1,6 +1,7 @@
 import json
 from transformers import AutoTokenizer
 from vllm import LLM, SamplingParams
+from vllm.lora.request import LoRARequest
 import re
 import importlib.util
 import os
@@ -29,7 +30,9 @@ def save_completions(completions, filepath):
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--model_name_or_path', type=str, default="./", help="model dir")
+    parser.add_argument('--model_name_or_path', type=str, default="meta-llama/Llama-3.1-8B-Instruct", help="model dir")
+    parser.add_argument('--lora-adapter_name_or_path', type=str, default="../train/saves/train/saves/llama3.1-8b/lora", help="lora adapter dir")
+    parser.add_argument('--enable-lora', type=bool, default=False, help="Whether to use lora adapter")
     parser.add_argument('--n_sampling', type=int, default=1, help="n for sampling")
     parser.add_argument("--k", type=int, default=1, help="Value of k for pass@k calculation")
     parser.add_argument("--data_dir", default="./data", type=str)
@@ -107,6 +110,7 @@ def infer(args):
                                      n=factor,
                                      top_p=args.top_p,
                                      )
+    lora_request = LoRARequest("lora-adapter", 1, args.lora_adapter_name_or_path) if args.enable_lora else None
     
     examples = load_data(args.data_name, args.split, args.data_dir)
     if args.end_idx == -1:
@@ -154,6 +158,7 @@ def infer(args):
               trust_remote_code=True, 
             #   swap_space=60,
               gpu_memory_utilization=0.96,
+              enable_lora=args.enable_lora,
               )
     
     file_outputs = []
@@ -161,7 +166,7 @@ def infer(args):
     for cur_generation_epoch in range(generation_epoch):
         completions_save_file = f'{args.completions_save_dir}/{model_name}/{args.data_name}/{out_file_prefix}_k{args.n_sampling}_s{args.start_idx}_e{args.end_idx}_gen_round{cur_generation_epoch}.pkl'
         
-        completions = llm.generate(prompt_batch, sampling_params)
+        completions = llm.generate(prompt_batch, sampling_params, lora_request=lora_request)
         
         save_completions(completions, completions_save_file)
         for i in range(len(examples)):
