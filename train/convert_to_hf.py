@@ -8,7 +8,7 @@ from transformers import AutoTokenizer
 zero3_dir = "/data/scsgpu1/work/jackyjiang/saves/llama3.1-8b/full"
 hf_dir = "/data/scsgpu1/work/jackyjiang/saves/llama3.1-8b-full-sft-limo-hf"
 base_model_or_tokenizer = "meta-llama/Llama-3.1-8B-Instruct"  # or path to the tokenizer you fine-tuned from
-use_safetensors = False  # set to True if you want safetensors output instead
+use_safetensors = True  # set to True if you want safetensors output instead
 
 # Optional fallback if tokenizer.model is missing
 manual_tokenizer_model_path = ""  # Leave blank if not needed
@@ -22,8 +22,8 @@ output_model_path = os.path.join(zero3_dir, "pytorch_model.bin")
 print("🔄 Converting ZeRO-3 sharded checkpoint to full model...")
 subprocess.run([
     "python", os.path.join(zero3_dir, "zero_to_fp32.py"),
-    "--model_dir", zero3_dir,
-    "--output_file", output_model_path
+    zero3_dir,
+    output_model_path
 ], check=True)
 
 # === Step 2: Save model file to HF dir ===
