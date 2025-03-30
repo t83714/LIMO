@@ -26,7 +26,7 @@ subprocess.run([
     output_model_path
 ], check=True)
 
-# === Step 2: Convert output to safetensors or keep PyTorch format ===
+# === Step 2: Convert to safetensors or keep .bin format ===
 if convert_to_safetensors:
     if os.path.isdir(output_model_path):
         print("📁 Detected sharded checkpoint directory. Converting shards to .safetensors...")
@@ -36,7 +36,12 @@ if convert_to_safetensors:
         
         with open(index_file) as f:
             index = json.load(f)
-        shard_filenames = sorted(set(v["filename"] for v in index["weight_map"].values()))
+
+        # Handle both old and new Hugging Face index formats
+        shard_filenames = sorted(set(
+            v if isinstance(v, str) else v["filename"]
+            for v in index["weight_map"].values()
+        ))
 
         for fname in shard_filenames:
             shard_path = Path(output_model_path) / fname
@@ -45,13 +50,16 @@ if convert_to_safetensors:
             state_dict = torch.load(shard_path, map_location="cpu")
             save_file(state_dict, safetensors_path)
 
-        # Copy and update index file for safetensors
+        # Copy and patch index file for safetensors
         index_sft = Path(hf_dir) / "model.safetensors.index.json"
         shutil.copy(index_file, index_sft)
         with open(index_sft, "r+") as f:
             data = json.load(f)
             for k, v in data["weight_map"].items():
-                data["weight_map"][k] = v.replace(".bin", ".safetensors")
+                if isinstance(v, str):
+                    data["weight_map"][k] = v.replace(".bin", ".safetensors")
+                elif isinstance(v, dict) and "filename" in v:
+                    v["filename"] = v["filename"].replace(".bin", ".safetensors")
             f.seek(0)
             json.dump(data, f, indent=2)
             f.truncate()
