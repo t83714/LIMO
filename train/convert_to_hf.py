@@ -2,13 +2,15 @@ import os
 import shutil
 import subprocess
 from pathlib import Path
+import json
 from transformers import AutoTokenizer
+from transformers.modeling_utils import convert_pytorch_shard_to_safetensors
 
 # === CONFIGURATION ===
 zero3_dir = "/data/scsgpu1/work/jackyjiang/saves/llama3.1-8b/full"
 hf_dir = "/data/scsgpu1/work/jackyjiang/saves/llama3.1-8b-full-sft-limo-hf"
 base_model_or_tokenizer = "meta-llama/Llama-3.1-8B-Instruct"  # or local tokenizer path
-convert_to_safetensors = True  # set to False to keep PyTorch .bin format
+convert_to_safetensors = True
 manual_tokenizer_model_path = ""  # optional fallback if auto tokenizer.model lookup fails
 
 # === Ensure output dir exists ===
@@ -23,17 +25,37 @@ subprocess.run([
     output_model_path
 ], check=True)
 
-# === Step 2: Handle output: single file or sharded folder ===
+# === Step 2: Convert output to safetensors or keep PyTorch format ===
 if convert_to_safetensors:
     if os.path.isdir(output_model_path):
         print("📁 Detected sharded checkpoint directory. Converting shards to .safetensors...")
-        subprocess.run([
-            "transformers-cli", "convert",
-            "--from_format", "pytorch",
-            "--to_format", "safetensors",
-            "--model_dir", output_model_path,
-            "--output_dir", hf_dir
-        ], check=True)
+        index_file = Path(output_model_path) / "pytorch_model.bin.index.json"
+        if not index_file.exists():
+            raise FileNotFoundError(f"Missing sharded index file: {index_file}")
+        
+        with open(index_file) as f:
+            index = json.load(f)
+        shard_filenames = sorted(set(v["filename"] for v in index["weight_map"].values()))
+
+        for fname in shard_filenames:
+            shard_path = Path(output_model_path) / fname
+            safetensors_path = Path(hf_dir) / fname.replace(".bin", ".safetensors")
+            print(f"💾 Converting {shard_path} -> {safetensors_path}")
+            convert_pytorch_shard_to_safetensors(
+                pytorch_checkpoint_path=str(shard_path),
+                safetensors_checkpoint_path=str(safetensors_path)
+            )
+
+        # Copy and rename the index file
+        index_sft = Path(hf_dir) / "model.safetensors.index.json"
+        shutil.copy(index_file, index_sft)
+        with open(index_sft, "r+") as f:
+            data = json.load(f)
+            for k, v in data["weight_map"].items():
+                data["weight_map"][k] = v.replace(".bin", ".safetensors")
+            f.seek(0)
+            json.dump(data, f, indent=2)
+            f.truncate()
     else:
         print("💾 Converting single weight file to .safetensors...")
         import torch
