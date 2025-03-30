@@ -3,8 +3,9 @@ import shutil
 import subprocess
 from pathlib import Path
 import json
+import torch
+from safetensors.torch import save_file
 from transformers import AutoTokenizer
-from transformers.modeling_utils import convert_pytorch_shard_to_safetensors
 
 # === CONFIGURATION ===
 zero3_dir = "/data/scsgpu1/work/jackyjiang/saves/llama3.1-8b/full"
@@ -40,13 +41,11 @@ if convert_to_safetensors:
         for fname in shard_filenames:
             shard_path = Path(output_model_path) / fname
             safetensors_path = Path(hf_dir) / fname.replace(".bin", ".safetensors")
-            print(f"💾 Converting {shard_path} -> {safetensors_path}")
-            convert_pytorch_shard_to_safetensors(
-                pytorch_checkpoint_path=str(shard_path),
-                safetensors_checkpoint_path=str(safetensors_path)
-            )
+            print(f"💾 Converting {shard_path.name} -> {safetensors_path.name}")
+            state_dict = torch.load(shard_path, map_location="cpu")
+            save_file(state_dict, safetensors_path)
 
-        # Copy and rename the index file
+        # Copy and update index file for safetensors
         index_sft = Path(hf_dir) / "model.safetensors.index.json"
         shutil.copy(index_file, index_sft)
         with open(index_sft, "r+") as f:
@@ -58,9 +57,6 @@ if convert_to_safetensors:
             f.truncate()
     else:
         print("💾 Converting single weight file to .safetensors...")
-        import torch
-        from safetensors.torch import save_file
-
         state_dict = torch.load(output_model_path, map_location="cpu")
         safetensors_path = os.path.join(hf_dir, "model.safetensors")
         save_file(state_dict, safetensors_path)
