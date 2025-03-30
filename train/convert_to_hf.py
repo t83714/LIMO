@@ -52,7 +52,7 @@ if convert_to_safetensors:
 
         # Copy and patch index file for safetensors
         index_sft = Path(hf_dir) / "model.safetensors.index.json"
-        shutil.copy(index_file, index_sft)
+        shutil.copyfile(index_file, index_sft)
         with open(index_sft, "r+") as f:
             data = json.load(f)
             for k, v in data["weight_map"].items():
@@ -72,16 +72,16 @@ else:
     print("📂 Keeping PyTorch weight format...")
     if os.path.isdir(output_model_path):
         for file in Path(output_model_path).glob("*"):
-            shutil.copy(file, os.path.join(hf_dir, file.name))
+            shutil.copyfile(file, os.path.join(hf_dir, file.name))
     else:
-        shutil.copy(output_model_path, os.path.join(hf_dir, "pytorch_model.bin"))
+        shutil.copyfile(output_model_path, os.path.join(hf_dir, "pytorch_model.bin"))
 
 # === Step 3: Copy config/tokenizer JSON files ===
 print("📋 Copying config and tokenizer JSON files...")
 for fname in ["config.json", "generation_config.json", "tokenizer_config.json", "special_tokens_map.json"]:
     fpath = os.path.join(zero3_dir, fname)
     if os.path.exists(fpath):
-        shutil.copy(fpath, os.path.join(hf_dir, fname))
+        shutil.copyfile(fpath, os.path.join(hf_dir, fname))
 
 # === Step 4: Extract or fallback to tokenizer.model ===
 print("🔍 Trying to extract tokenizer.model from tokenizer...")
@@ -90,14 +90,14 @@ try:
     tok_dir = tokenizer.name_or_path
     tok_model = os.path.join(tok_dir, "tokenizer.model")
     if os.path.exists(tok_model):
-        shutil.copy(tok_model, os.path.join(hf_dir, "tokenizer.model"))
+        shutil.copyfile(tok_model, os.path.join(hf_dir, "tokenizer.model"))
         print(f"✅ Found and copied tokenizer.model from: {tok_model}")
     else:
         raise FileNotFoundError(f"tokenizer.model not found at {tok_model}")
 except Exception as e:
     print(f"⚠️ Could not auto-locate tokenizer.model: {e}")
     if manual_tokenizer_model_path and os.path.exists(manual_tokenizer_model_path):
-        shutil.copy(manual_tokenizer_model_path, os.path.join(hf_dir, "tokenizer.model"))
+        shutil.copyfile(manual_tokenizer_model_path, os.path.join(hf_dir, "tokenizer.model"))
         print(f"✅ Used fallback tokenizer.model: {manual_tokenizer_model_path}")
     else:
         print("🚨 tokenizer.model not found! Please copy it manually.")
